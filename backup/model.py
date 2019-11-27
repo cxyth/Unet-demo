@@ -1,0 +1,71 @@
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D,\
+                                    BatchNormalization, Reshape, Activation, concatenate
+from tensorflow.keras.layers import concatenate
+from tensorflow.keras.utils import to_categorical  
+from tensorflow.keras.preprocessing.image import img_to_array  
+from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
+from tensorflow.keras.utils import multi_gpu_model, plot_model
+from tensorflow.keras.models import Model, load_model
+
+def unet(input_shape, n_label):
+    inputs = Input(input_shape)
+    #(512 512)
+    x = Conv2D(32, (3, 3), activation="relu", padding="same")(inputs)
+    x = BatchNormalization()(x)
+    x = Conv2D(32, (3, 3), activation="relu", padding="same")(x)
+    bnor2 = BatchNormalization()(x)
+    x = MaxPooling2D(pool_size=(2, 2))(bnor2)
+    #(256 256)
+    x = Conv2D(64, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(64, (3, 3), activation="relu", padding="same")(x)
+    bnor4 = BatchNormalization()(x)
+    x = MaxPooling2D(pool_size=(2, 2))(bnor4)
+    #(128 128)
+    x = Conv2D(128, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(128, (3, 3), activation="relu", padding="same")(x)
+    bnor6 = BatchNormalization()(x)
+    x = MaxPooling2D(pool_size=(2, 2))(bnor6)
+    #(64 64)
+    x = Conv2D(256, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(256, (3, 3), activation="relu", padding="same")(x)
+    bnor8 = BatchNormalization()(x)
+    x = MaxPooling2D(pool_size=(2, 2))(bnor8)
+    #(32 32)
+    x = Conv2D(512, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(512, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    #(64 64)
+    x = concatenate([UpSampling2D(size=(2, 2))(x), bnor8], axis=3)
+    x = Conv2D(256, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(256, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    # (128 128)
+    x = concatenate([UpSampling2D(size=(2, 2))(x), bnor6], axis=3)
+    x = Conv2D(128, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(128, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    #(256 256)
+    x = concatenate([UpSampling2D(size=(2, 2))(x), bnor4], axis=3)
+    x = Conv2D(64, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(64, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    #(512 512)
+    x = concatenate([UpSampling2D(size=(2, 2))(x), bnor2], axis=3)
+    x = Conv2D(32, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(32, (3, 3), activation="relu", padding="same")(x)
+    x = BatchNormalization()(x)
+    
+    x = Conv2D(n_label, (1, 1))(x)
+    x = Reshape((-1, n_label))(x)
+    y = Activation('softmax')(x)
+
+    model = Model(inputs=inputs, outputs=y)
+    return model
